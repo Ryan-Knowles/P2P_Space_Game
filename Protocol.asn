@@ -1,0 +1,42 @@
+DDGameProtocol ::= IMPLICIT TAGS 
+BEGIN
+
+-------------------
+--COMMAND SECTION--
+-------------------
+
+
+--Update physics of ship state
+Update :== [APPLICATION 5] SEQUENCE {
+    seqNum	    INTEGER,
+    source      PeerGID,
+	applyTime	INTEGER,
+	sendTime	INTEGER,
+    shipData    ShipData;
+}
+
+----------------
+--DATA SECTION--
+----------------
+
+--Contains name of peer and peer GID
+PeerData :== SEQUENCE {
+	name PlayerName,
+	gid  PeerGID;
+}
+
+PlayerName :== UTF8String;
+PeerGID :== UTF8String;
+
+ShipData :== SEQUENCE {
+	
+    ownerGID    	PeerGID,
+    playerName  	PlayerName,
+    shipFacing  	REAL,
+    xCenter     	INTEGER,
+    yCenter     	INTEGER,
+    xDestination   	INTEGER,
+    yDestination  	INTEGER;
+}
+
+END
