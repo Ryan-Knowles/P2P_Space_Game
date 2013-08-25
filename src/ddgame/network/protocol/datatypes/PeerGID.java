@@ -34,7 +34,15 @@ public class PeerGID extends ASNObj{
     //Get string representation of data for debugging
     public String getString(){
         if(this.peerGID==null)return "PeerGID: <null>";
-        return "PeerGID: "+this.peerGID.substring(0, 20);
+        
+        if(this.peerGID.length() > 20)
+        {
+        	return "PeerGID: "+this.peerGID.substring(0, 20);
+        }
+        else
+        {
+        	return "PeerGID: "+this.peerGID;
+        }
     }
     
     //Comparison operation

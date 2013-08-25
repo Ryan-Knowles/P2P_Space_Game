@@ -4,12 +4,13 @@
  */
 package ddgame.network.protocol.commands;
 
+import java.util.ArrayList;
+
 import ASN1.ASN1DecoderFail;
 import ASN1.ASNObj;
 import ASN1.Decoder;
 import ASN1.Encoder;
 import ddgame.network.protocol.datatypes.PeerGID;
-import ddgame.network.protocol.datatypes.PeerLink;
 import ddgame.network.protocol.datatypes.ShipData;
 
 /**
@@ -19,47 +20,51 @@ import ddgame.network.protocol.datatypes.ShipData;
 public class UpdateShip extends ASNObj{
     
 //--Update physics of ship state
-//UpdateShip :== [APPLICATION 5] SEQUENCE {
-//    timeSent    INTEGER,
-//    dest        PeerGID,
-//    shipData    ShipData;
-//    
+//	Update :== [APPLICATION 5] SEQUENCE {
+//  seqNum	    INTEGER,
+//  source      PeerGID,
+//	applyTime	INTEGER,
+//	sendTime	INTEGER,
+//  shipData    ShipData;
 //}
 
     public static final byte asnType = Encoder.buildASN1byteType(Encoder.CLASS_APPLICATION, Encoder.PC_CONSTRUCTED, (byte) 5);
     
-    private long timeSent;
-    private PeerGID dest;
-    private ShipData shipData;
+    private long seqNum;
+    private PeerGID source;
+    private ArrayList<ShipData> shipData;
     
     //Getters
-    public long getTime(){return this.timeSent;}
-    public PeerGID getDestination(){return this.dest;}
-    public ShipData getShipData(){return this.shipData;}
+    public long getSequenceNumber(){return this.seqNum;}
+    public PeerGID getSource(){return this.source;}
+    public ArrayList<ShipData> getShipData(){return this.shipData;}
     
     //Constructors
     public UpdateShip(){}
     
-    public UpdateShip(PeerGID dest, ShipData shipData){
-        this.timeSent = System.currentTimeMillis();
-        this.dest = dest;
+    public UpdateShip(long seqNum, PeerGID source, ArrayList<ShipData> shipData){
+        this.seqNum = seqNum;
+        this.source = source;
         this.shipData = shipData;
     }
     
-    public UpdateShip(String dest, ShipData shipData){
-        this.timeSent = System.currentTimeMillis();
-        this.dest = new PeerGID(dest);
+    public UpdateShip(long seqNum, String source,  ArrayList<ShipData> shipData){
+        this.seqNum = seqNum;
+        this.source = new PeerGID(source);
         this.shipData = shipData;
     }
     
     //Get string representation of data for debugging
     public String getString(){
         String header = "UpdateShip: (";
-        String time =  "time: "+this.timeSent;
-        String destination = "\n\tdestination: "+this.dest.getString();
-        String shipinfo = "\n\t"+this.shipData.getString();
-        String footer = ")\n";
-        return header+time+destination+shipinfo+footer;
+        String seq = "\n\tseq: "+this.seqNum;
+        String src = "\n\tsource: "+this.source.getString();
+        String shipinfo = "";
+        for(ShipData sd : this.shipData){
+        	shipinfo += "\n\t"+sd.getString();
+        }
+        String footer = "\n\t)\n";
+        return header+seq+src+shipinfo+footer;
     }
     
     
@@ -69,14 +74,20 @@ public class UpdateShip extends ASNObj{
         Encoder usEncoder = new Encoder().initSequence();
         usEncoder.setASN1Type(asnType);
         
-        //Add timeSent INTEGER value to encoder
-        usEncoder.addToSequence(new Encoder(timeSent));
+        //Add sequenceNumber INTEGER value to encoder
+        usEncoder.addToSequence(new Encoder(seqNum));
         
-        //Add destination PeerGID object to encoder
-        usEncoder.addToSequence(dest.getEncoder());
+        //Add source PeerGID object to encoder
+        usEncoder.addToSequence(source.getEncoder());
                 
         //Add shipData ShipData object to encoder
-        usEncoder.addToSequence(shipData.getEncoder());
+        Encoder sdEncoder = new Encoder().initSequence();
+        for(ShipData sd: this.shipData)
+        {
+        	sdEncoder.addToSequence(sd.getEncoder());
+        }
+        
+        usEncoder.addToSequence(sdEncoder);
         
         return usEncoder;
     }
@@ -86,11 +97,12 @@ public class UpdateShip extends ASNObj{
         
         Decoder usDecoder = dec.getContent();
         
-        this.timeSent = (usDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).longValue();
+        this.seqNum = (usDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).longValue();
         
-        this.dest = (PeerGID) new PeerGID().decode(usDecoder.getFirstObject(true, PeerGID.asnType));
+        this.source = (PeerGID) new PeerGID().decode(usDecoder.getFirstObject(true, PeerGID.asnType));
         
-        this.shipData = (ShipData) new ShipData().decode(usDecoder.getFirstObject(true, ShipData.asnType));
+        this.shipData = usDecoder.<ShipData>getSequenceOfAL(ShipData.asnType, new ShipData());
+        //v (ShipData) new ShipData().decode(usDecoder.getFirstObject(true, ShipData.asnType));
         
         return this;
     }

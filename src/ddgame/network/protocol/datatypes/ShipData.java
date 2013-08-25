@@ -13,29 +13,30 @@ import ASN1.Encoder;
  *
  * @author rknowles
  */
-public class ShipData extends ASNObj{
+public class ShipData extends ASNObj implements Cloneable{
     
 //ShipData :== SEQUENCE {
-//    player      PeerData,
-//    shipFacing  REAL,
-//    xCenter     INTEGER,
-//    yCenter     INTEGER,
-//    moveFacing  REAL,
-//    xVelocity   REAL,
-//    yVelocity   REAL;
+//	  lastUpdate	INTEGER,	
+//    player	  	PeerData,
+//    shipFacing  	REAL,
+//    xCenter     	INTEGER,
+//    yCenter     	INTEGER,
+//    xDestination  INTEGER,
+//    yDestination  INTEGER;
 //}
     
     public static final byte asnType = Encoder.buildASN1byteType(Encoder.CLASS_UNIVERSAL, Encoder.PC_CONSTRUCTED, Encoder.TAG_SEQUENCE);
     
+    private long lastUpdate;
     private PeerData player;
     private double shipFacing;
     private int xCenter;
     private int yCenter;
-    private double moveFacing;
-    private double xVelocity;
-    private double yVelocity;
+    private int xDestination;
+    private int yDestination;
     
     //Getters
+    public long getLastUpdate(){return this.lastUpdate;}
     public PeerData getPeerData(){return this.player;}
     public PeerGID getOwnerGID(){return this.player.getPeerGID();}
     public String getOwnerGIDAsString(){return this.player.getPeerGIDAsString();}
@@ -44,22 +45,21 @@ public class ShipData extends ASNObj{
     public double getShipFacing(){return this.shipFacing;}
     public int getXCenter(){return this.xCenter;}
     public int getYCenter(){return this.yCenter;}
-    public double getMoveFacing(){return this.moveFacing;}
-    public double getXVelocity(){return this.xVelocity;}
-    public double getYVelocity(){return this.yVelocity;}
+    public int getXDestination(){return this.xDestination;}
+    public int getYDestination(){return this.yDestination;}
     
     //Constructors
     public ShipData(){}
     
-    public ShipData(PeerData player, double shipFacing, int xCenter, int yCenter, double moveFacing, 
-                    double xVelocity, double yVelocity){
+    public ShipData(long lastUpdate, PeerData player, double shipFacing, int xCenter, int yCenter, 
+    				int xDestination, int yDestination){
+    	this.lastUpdate = lastUpdate;
         this.player = player;
         this.shipFacing = shipFacing;
         this.xCenter = xCenter;
         this.yCenter = yCenter;
-        this.moveFacing = moveFacing;
-        this.xVelocity = xVelocity;
-        this.yVelocity = yVelocity;
+        this.xDestination = xDestination;
+        this.yDestination = yDestination;
     }
     
     //Comparison operation
@@ -71,18 +71,21 @@ public class ShipData extends ASNObj{
     //Get string representation of data for debugging
     public String getString(){
         String header = "ShipData: {";
+        String updated = "\n\tupdated: "+this.lastUpdate;
         String owner =  "\n\towner: "+this.player.getString();
         String facing = "\n\tfacing: "+this.shipFacing;
         String center = "\n\tcenter: ("+this.xCenter+","+this.yCenter+")";
-        String moving = "\n\tmoving: "+this.moveFacing;
-        String velocity = "\n\tvelocity: ("+this.xVelocity+","+this.yVelocity+")";
+        String destination = "\n\tdestination: ("+this.xDestination+","+this.yDestination+")";
         String footer = "}\n";
-        return header+owner+facing+center+moving+velocity+footer;
+        return header+owner+facing+center+destination+footer;
     }
     
     @Override
     public Encoder getEncoder() {
         Encoder shipDataEncoder = new Encoder().initSequence();
+        
+        //Add last update time
+        shipDataEncoder.addToSequence(new Encoder(lastUpdate));
         
         //Add player PeerData object to encoder
         shipDataEncoder.addToSequence(player.getEncoder());
@@ -95,15 +98,12 @@ public class ShipData extends ASNObj{
         
         //Add yCenter integer value to encoder
         shipDataEncoder.addToSequence(new Encoder(yCenter));
-        
-        //Add moveFacing double value to encoder
-        shipDataEncoder.addToSequence(new Encoder(moveFacing));
-        
+               
         //Add xVelocity double value to encoder
-        shipDataEncoder.addToSequence(new Encoder(xVelocity));
+        shipDataEncoder.addToSequence(new Encoder(xDestination));
         
         //Add yVelocity double value to encoder
-        shipDataEncoder.addToSequence(new Encoder(yVelocity));
+        shipDataEncoder.addToSequence(new Encoder(yDestination));
         
         return shipDataEncoder;
     }
@@ -112,14 +112,15 @@ public class ShipData extends ASNObj{
     public Object decode(Decoder dec) throws ASN1DecoderFail {
         Decoder sdDecoder = dec.getContent();
         
+        this.lastUpdate = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).longValue();
+        
         this.player = (PeerData) new PeerData().decode(sdDecoder.getFirstObject(true, PeerData.asnType));
         
         this.shipFacing = sdDecoder.getFirstObject(true, Encoder.TAG_REAL).getReal();
         this.xCenter = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
         this.yCenter = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
-        this.moveFacing = sdDecoder.getFirstObject(true, Encoder.TAG_REAL).getReal();
-        this.xVelocity = sdDecoder.getFirstObject(true, Encoder.TAG_REAL).getReal();
-        this.yVelocity = sdDecoder.getFirstObject(true, Encoder.TAG_REAL).getReal();
+        this.xDestination = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
+        this.yDestination = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
         return this;
     }
 }

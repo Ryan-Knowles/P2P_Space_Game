@@ -46,9 +46,9 @@ public class NetworkController {
     
     private static HashMap<String, Date> sentRequests = new HashMap<>();
     private static ArrayDeque<OutputEvent> outputQueue = new ArrayDeque<>(20);
+    private static ArrayList<Peer> peers = new ArrayList<>();
     
     private static DDGameCommHandler handler;
-    private static ConnectionManager manager;
     
     private static long lastUpdate = 0;
     
@@ -56,7 +56,6 @@ public class NetworkController {
     //Run at start of game in loading loop
     public static void init() {
         handler = DDGameCommHandler.getInstance();
-        manager = ConnectionManager.getInstance();
         
         //Clear data queue
         if(handler.getDataQueueSize()>0){
@@ -70,7 +69,7 @@ public class NetworkController {
     
     //Run at game cleanup
     public static void cleanup(){
-        manager.clearList();
+        peers.clear();
     }
     
     public static void updatePreMainUpdate(){
@@ -161,147 +160,7 @@ public class NetworkController {
         Decoder dec = new Decoder(data);
        
         try {
-            if(dec.getTypeByte()==JoinRequest.asnType){
-                if(DEBUG)System.out.println("processMessage: JoinRequest(start)");
-                //Do JoinRequest operations
-                JoinRequest msg = (JoinRequest) new JoinRequest().decode(dec);
-                if(DEBUG)System.out.println("processMessage: JoinRequest(got: "+msg.getString()+")");
-                long msgDelay = Math.abs(System.currentTimeMillis()-msg.getTime());
-                
-                //Check for outdated message (older than 30 seconds)
-                if(msgDelay>MSG_TIMEOUT){
-                    //Do nothing
-                    if(DEBUG)System.out.println("processMessage: JoinRequest(late message - msgDelay: "+(msgDelay/1000)+" seconds)");
-                }
-                //Determine state of game
-                else if(state==GameState.PLAYING){
-                    //Accepted RequestAck operations
-                    OutputEvent ackEvent = new OutputEvent(senderGID, OutputEventType.REQUEST_ACK);
-                    ackEvent.setRequestAckAnswer(true);
-                    outputQueue.add(ackEvent);
-                    manager.addPeer(msg.getPeerData());
-                    PeerLink pl = new PeerLink(msg.getPeerData().getPeerGID(), manager.getLocalPeer().getPeerGID());
-                    manager.addPeerLink(pl);
-                } else {
-                    //Declined RequestAck operations
-                    OutputEvent ackEvent = new OutputEvent(senderGID, OutputEventType.REQUEST_ACK);
-                    ackEvent.setRequestAckAnswer(false);
-                    outputQueue.add(ackEvent);
-                }
-                if(DEBUG)System.out.println("processMessage: JoinRequest(end)");
-            }
-            else if(dec.getTypeByte()==RequestAck.asnType){
-                if(DEBUG)System.out.println("processMessage: RequestAck(start)");
-                //Do requestAck operations
-                RequestAck msg = (RequestAck) new RequestAck().decode(dec);
-                
-                long msgDelay = Math.abs(System.currentTimeMillis()-msg.getTime());
-                
-                //Check for outdated message (older than 30 seconds)
-                if(msgDelay>MSG_TIMEOUT){
-                    //Do nothing
-                    if(DEBUG)System.out.println("processMessage: RequestAck(late message - msgDelay: "+(msgDelay/1000)+" seconds)");
-                }
-                //Verify waiting for RequestAck from sender and have been waiting 
-                //less than 30 seconds
-                else if(sentRequests.containsKey(senderGID)){
-                    Date time = sentRequests.remove(senderGID);
-                    
-                    //Determine how long system has been waiting for the
-                    //acknowledgment
-                    long ackDelay = Math.abs(System.currentTimeMillis()-time.getTime());
-                    
-                    //Check if greater than 30 seconds
-                    if(ackDelay>MSG_TIMEOUT){
-                        return; //Do nothing
-                    }
-                    
-                    //Since RequestAck is expected from sender and received
-                    //within the time limit, process the acknowledgment
-                    PeerMap requestData = msg.getPeerMap();
-                    //If peermap is not null, request was accepted, else it
-                    //was rejected and should do nothing.
-                    if(requestData!=null){
-                        manager.mergePeerMap(requestData);
-                        //Start game if state=standby
-                        if(state==GameState.STANDBY){
-                            DDGameMain.startGame();
-                        }
-                    }
-
-                }
-                if(DEBUG)System.out.println("processMessage: RequestAck(end)");
-            }
-            else if(dec.getTypeByte()==AddPeer.asnType && state==GameState.PLAYING){
-                if(DEBUG)System.out.println("processMessage: AddPeer(start)");
-                //Do addpeer operations
-                AddPeer msg = (AddPeer) new AddPeer().decode(dec);
-                
-                long msgDelay = Math.abs(System.currentTimeMillis()-msg.getTime());
-                
-                //Check for outdated message (older than 30 seconds)
-                if(msgDelay>MSG_TIMEOUT){
-                    //Do nothing
-                    if(DEBUG)System.out.println("processMessage: AddPeer(late message - msgDelay: "+(msgDelay/1000)+" seconds)");
-                }
-                //If destination peer isn't local peer, immediately relay message
-                else if(!msg.getDestination().equals(manager.getLocalPeer().getPeerGID())){
-                    manager.sendToPeer(msg.getDestination().getPeerGID(), data);
-                }
-                //Else process DeleteLink
-                else {
-                    PeerData pd = msg.getPeerData();
-                    manager.addPeer(pd);
-                }
-                if(DEBUG)System.out.println("processMessage: AddPeer(end)");
-            }
-            else if(dec.getTypeByte()==AddLink.asnType && state==GameState.PLAYING){
-                if(DEBUG)System.out.println("processMessage: AddLink(start)");
-                //Do addlink operations
-                AddLink msg = (AddLink) new AddLink().decode(dec);
-                
-                long msgDelay = Math.abs(System.currentTimeMillis()-msg.getTime());
-                
-                //Check for outdated message (older than 30 seconds)
-                if(msgDelay>MSG_TIMEOUT){
-                    //Do nothing
-                    if(DEBUG)System.out.println("processMessage: AddLink(late message - msgDelay: "+(msgDelay/1000)+" seconds)");
-                }
-                //If destination peer isn't local peer, immediately relay message
-                else if(!msg.getDestination().equals(manager.getLocalPeer().getPeerGID())){
-                    manager.sendToPeer(msg.getDestination().getPeerGID(), data);
-                }
-                //Else process DeleteLink
-                else {
-                    PeerLink pl = msg.getPeerLink();
-                    manager.addPeerLink(pl);
-                }
-                if(DEBUG)System.out.println("processMessage: AddLink(end)");
-            }
-            else if(dec.getTypeByte()==DeleteLink.asnType && state==GameState.PLAYING){
-                if(DEBUG)System.out.println("processMessage: DeleteLink(start)");
-                //Do deletelink operations
-                DeleteLink msg = (DeleteLink) new DeleteLink().decode(dec);
-                
-                long msgDelay = Math.abs(System.currentTimeMillis()-msg.getTime());
-                
-                //Check for outdated message (older than 30 seconds)
-                if(msgDelay>MSG_TIMEOUT){
-                    //Do nothing
-                    if(DEBUG)System.out.println("processMessage: DeleteLink(late message - msgDelay: "+(msgDelay/1000)+" seconds)");
-                }
-                //If destination peer isn't local peer, immediately relay message
-                else if(!msg.getDestination().equals(manager.getLocalPeer().getPeerGID())){
-                    manager.sendToPeer(msg.getDestination().getPeerGID(), data);
-                }
-                //Else process DeleteLink
-                else {
-                    PeerLink pl = msg.getPeerLink();
-                    manager.removePeerLink(pl);
-                }
-                if(DEBUG)System.out.println("processMessage: DeleteLink(end)");
-            }
-            else if(dec.getTypeByte()==UpdateShip.asnType && state==GameState.PLAYING){
+            if(dec.getTypeByte()==UpdateShip.asnType && state==GameState.PLAYING){
                 if(DEBUG)System.out.println("processMessage: UpdateShip(start)");
                 //Do update ship operations
                 UpdateShip msg = (UpdateShip) new UpdateShip().decode(dec);
@@ -314,8 +173,8 @@ public class NetworkController {
                     if(DEBUG)System.out.println("processMessage: UpdateShip(late message - msgDelay: "+(msgDelay/1000)+" seconds)");
                 }
                 //If destination peer isn't local peer, immediately relay message
-                else if(!msg.getDestination().equals(manager.getLocalPeer().getPeerGID())){
-                    String dest = msg.getDestination().getPeerGID();
+                else if(!msg.getSource().equals(manager.getLocalPeer().getPeerGID())){
+                    String dest = msg.getSource().getPeerGID();
                     manager.sendToPeer(dest, data);
                     if(DEBUG)System.out.println("processMessage: UpdateShip(relaying msg from: "+senderGID.substring(0, 20)+" to:"+dest.substring(0, 20)+")");
                 }

@@ -10,9 +10,7 @@ BEGIN
 Update :== [APPLICATION 5] SEQUENCE {
     seqNum	    INTEGER,
     source      PeerGID,
-	applyTime	INTEGER,
-	sendTime	INTEGER,
-    shipData    ShipData;
+    shipData    SEQUENCE OF ShipData;
 }
 
 ----------------
@@ -29,9 +27,8 @@ PlayerName :== UTF8String;
 PeerGID :== UTF8String;
 
 ShipData :== SEQUENCE {
-	
-    ownerGID    	PeerGID,
-    playerName  	PlayerName,
+	lastUpdate		INTEGER,
+    player  		PeerData,
     shipFacing  	REAL,
     xCenter     	INTEGER,
     yCenter     	INTEGER,
