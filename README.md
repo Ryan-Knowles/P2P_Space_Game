@@ -4,7 +4,9 @@ P2P_Space_Game
 Senior Project, plugin for the DDP2P system found at http://directdemocracyp2p.net/
 
 Warning, about Licenses:
+
 src/DD.jar________GPL
+
 src/ASNI/*.java___GPL
 
 all the rest______MIT
