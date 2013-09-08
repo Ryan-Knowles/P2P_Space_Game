@@ -29,9 +29,6 @@ PeerGID :== UTF8String;
 ShipData :== SEQUENCE {
 	lastUpdate		INTEGER,
     player  		PeerData,
-    shipFacing  	REAL,
-    xCenter     	INTEGER,
-    yCenter     	INTEGER,
     xDestination   	INTEGER,
     yDestination  	INTEGER;
 }

@@ -4,6 +4,7 @@
  */
 package ddgame.network.protocol.datatypes;
 
+import ddgame.data.Ship;
 import ASN1.ASN1DecoderFail;
 import ASN1.ASNObj;
 import ASN1.Decoder;
@@ -29,9 +30,6 @@ public class ShipData extends ASNObj implements Cloneable{
     
     private long lastUpdate;
     private PeerData player;
-    private double shipFacing;
-    private int xCenter;
-    private int yCenter;
     private int xDestination;
     private int yDestination;
     
@@ -42,22 +40,28 @@ public class ShipData extends ASNObj implements Cloneable{
     public String getOwnerGIDAsString(){return this.player.getPeerGIDAsString();}
     public PlayerName getPlayerName(){return this.player.getPlayerName();}
     public String getPlayerNameAsString(){return this.player.getPlayerNameAsString();}
-    public double getShipFacing(){return this.shipFacing;}
-    public int getXCenter(){return this.xCenter;}
-    public int getYCenter(){return this.yCenter;}
     public int getXDestination(){return this.xDestination;}
     public int getYDestination(){return this.yDestination;}
     
     //Constructors
     public ShipData(){}
     
-    public ShipData(long lastUpdate, PeerData player, double shipFacing, int xCenter, int yCenter, 
-    				int xDestination, int yDestination){
+    public ShipData(Ship s){
+    	this.lastUpdate = s.getLastUpdate();
+    	this.player = s.getPeer();
+    	if(s.getDest()==null){
+    		this.xDestination = (int) (s.getCenter().getX());
+    		this.yDestination = (int) (s.getCenter().getY());
+    	}
+    	else {
+	    	this.xDestination = (int) (s.getCenter().getX()+s.getDest().getX());
+	    	this.yDestination = (int) (s.getCenter().getY()+s.getDest().getY());
+    	}
+    }
+    
+    public ShipData(long lastUpdate, PeerData player, int xDestination, int yDestination){
     	this.lastUpdate = lastUpdate;
         this.player = player;
-        this.shipFacing = shipFacing;
-        this.xCenter = xCenter;
-        this.yCenter = yCenter;
         this.xDestination = xDestination;
         this.yDestination = yDestination;
     }
@@ -73,11 +77,9 @@ public class ShipData extends ASNObj implements Cloneable{
         String header = "ShipData: {";
         String updated = "\n\tupdated: "+this.lastUpdate;
         String owner =  "\n\towner: "+this.player.getString();
-        String facing = "\n\tfacing: "+this.shipFacing;
-        String center = "\n\tcenter: ("+this.xCenter+","+this.yCenter+")";
         String destination = "\n\tdestination: ("+this.xDestination+","+this.yDestination+")";
         String footer = "}\n";
-        return header+owner+facing+center+destination+footer;
+        return header+owner+destination+footer;
     }
     
     @Override
@@ -89,16 +91,7 @@ public class ShipData extends ASNObj implements Cloneable{
         
         //Add player PeerData object to encoder
         shipDataEncoder.addToSequence(player.getEncoder());
-        
-        //Add shipFacing double value to encoder
-        shipDataEncoder.addToSequence(new Encoder(shipFacing));
-        
-        //Add xCenter integer value to encoder
-        shipDataEncoder.addToSequence(new Encoder(xCenter));
-        
-        //Add yCenter integer value to encoder
-        shipDataEncoder.addToSequence(new Encoder(yCenter));
-               
+                       
         //Add xVelocity double value to encoder
         shipDataEncoder.addToSequence(new Encoder(xDestination));
         
@@ -115,10 +108,7 @@ public class ShipData extends ASNObj implements Cloneable{
         this.lastUpdate = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).longValue();
         
         this.player = (PeerData) new PeerData().decode(sdDecoder.getFirstObject(true, PeerData.asnType));
-        
-        this.shipFacing = sdDecoder.getFirstObject(true, Encoder.TAG_REAL).getReal();
-        this.xCenter = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
-        this.yCenter = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
+
         this.xDestination = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
         this.yDestination = (sdDecoder.getFirstObject(true, Encoder.TAG_INTEGER).getInteger()).intValue();
         return this;

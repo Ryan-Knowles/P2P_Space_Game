@@ -10,6 +10,8 @@ import ASN1.ASN1DecoderFail;
 import ASN1.ASNObj;
 import ASN1.Decoder;
 import ASN1.Encoder;
+import ddgame.data.DataController;
+import ddgame.network.protocol.datatypes.PeerData;
 import ddgame.network.protocol.datatypes.PeerGID;
 import ddgame.network.protocol.datatypes.ShipData;
 
@@ -29,6 +31,14 @@ public class UpdateShip extends ASNObj{
 //}
 
     public static final byte asnType = Encoder.buildASN1byteType(Encoder.CLASS_APPLICATION, Encoder.PC_CONSTRUCTED, (byte) 5);
+    private static long syncNum = 0;
+    
+    public static UpdateShip buildLocal(){
+    	PeerGID src = DataController.getInstance().getPlayerShip().getPeer().getPeerGID(); 
+    	ArrayList<ShipData> data = DataController.getInstance().getGetShipData();
+    	
+    	return new UpdateShip(++syncNum, src, data);
+    }
     
     private long seqNum;
     private PeerGID source;

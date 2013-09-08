@@ -20,8 +20,8 @@ import javax.imageio.ImageIO;
 public class BackgroundTileset {
     public static final int NUM_STARFIELDS = 12;
     public static final int NUM_NEBULA = 9;
-    public static final int MAP_WIDTH = 20;     //Measured in 256 pixel chunks
-    public static final int MAP_HEIGHT = 20;    //Measured in 256 pixel chunks
+    public static final int MAP_WIDTH = 5;     //Measured in 256 pixel chunks
+    public static final int MAP_HEIGHT = 5;    //Measured in 256 pixel chunks
     public static final int MAP_SCALE = 256;    //Pixels per chunk
     
     private BufferedImage[] starfield = new BufferedImage[NUM_STARFIELDS];
@@ -122,19 +122,7 @@ public class BackgroundTileset {
                 e.printStackTrace();
             }
         }
-        
-        //Load nebulea images
-        for(index=0; index<NUM_NEBULA; index++) {
-            String filePath = "/gfx/Nebula_RealisticHighContrast/"+index+".png";
-            try {
-                BufferedImage temp = ImageIO.read(this.getClass().getResource(filePath));
-                nebula[index] = new BufferedImage(temp.getWidth(), temp.getHeight(), BufferedImage.TYPE_INT_ARGB);
-                nebula[index].getGraphics().drawImage(temp, 0, 0, null);
-                //System.out.println("Nebula "+index+"type: "+nebula[index].getType());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+
     }
     
 

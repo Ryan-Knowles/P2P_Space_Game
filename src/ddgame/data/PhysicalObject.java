@@ -16,13 +16,13 @@ import ddgame.physics.PolarVector;
  * @author rknowles
  */
 public class PhysicalObject extends BaseGraphicObject{
-    private Shape shape;        //Collision detection object
-    private double xPosition, yPosition;    //Objects top-left corner at 90 degree facing
-    private double xCenter, yCenter;        //Center point of object
+    protected Shape shape;        //Collision detection object
+    protected double xPosition, yPosition;    //Objects top-left corner at 90 degree facing
+    protected double xCenter, yCenter;        //Center point of object
     private double xVelocity, yVelocity, netVelocity;
-    private double moveAngle, faceAngle;
+    protected double moveAngle, faceAngle;
     private double forwardAccel, reverseAccel;
-    private double width, height;           //Physical Width and Height
+    protected double width, height;           //Physical Width and Height
     private double mass, frictionConstant;
     private double turnSpeed;
     
@@ -34,8 +34,8 @@ public class PhysicalObject extends BaseGraphicObject{
     private boolean alive;
     
     //Time Variables
-    private long lastTick;                  //Last time the move() function was called.
-    private final long TICK_RATE = 1000;    //1000 Millisecond tick rate
+    protected long lastTick;                  	//Last time the move() function was called.
+    protected final double TICK_RATE = 1000.0;	//1000 Millisecond tick rate
     
     //Getters
     public Shape getShape() {return this.shape;}
@@ -97,8 +97,7 @@ public class PhysicalObject extends BaseGraphicObject{
     public void init(double mass, double friction, double xCenter, double yCenter,
                      double turnSpeed, double fa, double ra, double facing, 
                      double height, double width) {
-        if(initialized) return; //Can't call init twice
-        
+    	
         this.mass = mass;
         this.frictionConstant = friction;
         this.xCenter = xCenter;
@@ -136,7 +135,7 @@ public class PhysicalObject extends BaseGraphicObject{
         
         //Find difference in time
         long currentTime = System.currentTimeMillis();
-        double timeModifier = (currentTime-lastTick)/1000.0;
+        double timeModifier = (currentTime-lastTick)/TICK_RATE;
         //System.out.println("Current: "+currentTime+" Last: "+lastTick+"Diff: "+(currentTime-lastTick));
         //System.out.println("timeModifier: "+timeModifier+" turnSpeed*timeMod: "+(turnSpeed*timeModifier));
         calcRotation(timeModifier);

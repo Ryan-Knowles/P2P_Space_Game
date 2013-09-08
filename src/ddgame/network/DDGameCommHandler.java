@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 public class DDGameCommHandler {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     //Implements Singleton pattern
     private static DDGameCommHandler instance = null;
@@ -22,11 +22,11 @@ public class DDGameCommHandler {
     private volatile int msgs_in_queue = 0;
     private DDGameCommHandler () {}
 
-    public synchronized int getDataCount(){ return data_in_queue; }
-    public synchronized int getMsgCount(){ return msgs_in_queue; }
+    public synchronized int getDataCount() { return data_in_queue; }
+    public synchronized int getMsgCount() { return msgs_in_queue; }
     public synchronized int getDataQueueSize() { return data_queue.size(); }
-    public synchronized int getEventQueueSize(){return this.eventQueue.size();}
-
+    public synchronized int getEventQueueSize() { return this.eventQueue.size(); }
+ 
     ////////////////////////////////////////////////////
     //Methods that handle receiving new PlatformEvents//
     ////////////////////////////////////////////////////

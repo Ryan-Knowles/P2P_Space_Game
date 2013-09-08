@@ -9,24 +9,16 @@ import ASN1.Decoder;
 import ddgame.core.DDGameLoop;
 import ddgame.core.DDGameMain;
 import ddgame.core.GameState;
-import ddgame.network.data.Peer;
+import ddgame.data.DataController;
 import ddgame.network.data.DataContainer;
 import ddgame.network.data.OutputEvent;
 import ddgame.network.data.OutputEventType;
 import ddgame.network.data.PlatformEvent;
-import ddgame.network.protocol.commands.AddLink;
-import ddgame.network.protocol.commands.AddPeer;
-import ddgame.network.protocol.commands.DeleteLink;
-import ddgame.network.protocol.commands.JoinRequest;
-import ddgame.network.protocol.commands.RequestAck;
 import ddgame.network.protocol.commands.UpdateShip;
 import ddgame.network.protocol.datatypes.PeerData;
-import ddgame.network.protocol.datatypes.PeerLink;
-import ddgame.network.protocol.datatypes.PeerMap;
 import ddgame.network.protocol.datatypes.ShipData;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -40,13 +32,11 @@ import java.util.logging.Logger;
 
 public class NetworkController {
     private static final boolean DEBUG = false;
-    private static final int MSG_TIMEOUT = 30000;   //throw away messages older than 30 seconds
     
     private static long lastMessageTime;
     
     private static HashMap<String, Date> sentRequests = new HashMap<>();
     private static ArrayDeque<OutputEvent> outputQueue = new ArrayDeque<>(20);
-    private static ArrayList<Peer> peers = new ArrayList<>();
     
     private static DDGameCommHandler handler;
     
@@ -69,7 +59,7 @@ public class NetworkController {
     
     //Run at game cleanup
     public static void cleanup(){
-        peers.clear();
+        Connection.clear();
     }
     
     public static void updatePreMainUpdate(){
@@ -110,6 +100,7 @@ public class NetworkController {
         //Push update events every 250ms
         long updateDelta = System.currentTimeMillis()-lastUpdate;
         if(state==GameState.PLAYING&&updateDelta>250){
+        	Connection.validate();
             OutputEvent shipUpdateEvent = new OutputEvent(null, OutputEventType.SHIP_UPDATE);
             outputQueue.add(shipUpdateEvent);
             lastUpdate = System.currentTimeMillis();
@@ -124,10 +115,10 @@ public class NetworkController {
             String localName = pe.getPluginDataLocalName();
             
             if(localGID!=null&&localName!=null){
-                Peer p = new Peer(localName, localGID, true);
-                manager.setLocalPeer(p);
+            	PeerData myData = new PeerData(localName, localGID);
+                DataController.getInstance().makePlayerShip(myData);
             }
-            if(DEBUG)System.out.println("processEvent: PLUGIN_DATA_RDY(localpeer: "+manager.getLocalPeer().getPeerData().getString()+")");
+            if(DEBUG)System.out.println("processEvent: PLUGIN_DATA_RDY(localpeer: "+DataController.getInstance().getPlayerShip().getPeer().getString()+")");
             if(DEBUG)System.out.println("processEvent: PLUGIN_DATA_RDY(end)");
         } 
         
@@ -142,13 +133,8 @@ public class NetworkController {
         else if(pe.getTypeString().equalsIgnoreCase("JOIN_REQUEST")){
             if(DEBUG)System.out.println("processEvent: JOIN_REQUEST(start)");
             String receiver = pe.getJoinRequestPeerGID();
-            
-            JoinRequest request = new JoinRequest(manager.getLocalPeer().getPeerData());
-            if(DEBUG)System.out.println("processEvent: JOIN_REQUEST("+request.getString()+")");
-            byte[] encodedRequest = request.getEncoder().getBytes();
-            
-            handler.sendMessage(receiver, encodedRequest);
-            sentRequests.put(receiver, new Date());
+            Connection.addConnection(receiver);
+            DDGameMain.startGame();
             if(DEBUG)System.out.println("processEvent: JOIN_REQUEST(end)");
         }
     }
@@ -160,30 +146,25 @@ public class NetworkController {
         Decoder dec = new Decoder(data);
        
         try {
-            if(dec.getTypeByte()==UpdateShip.asnType && state==GameState.PLAYING){
+            if(dec.getTypeByte()==UpdateShip.asnType && state==GameState.PLAYING) {
                 if(DEBUG)System.out.println("processMessage: UpdateShip(start)");
                 //Do update ship operations
                 UpdateShip msg = (UpdateShip) new UpdateShip().decode(dec);
                 
-                long msgDelay = Math.abs(System.currentTimeMillis()-msg.getTime());
+                Connection sender = Connection.getConnection(senderGID);
+                if(sender == null) {
+                	Connection.addConnection(senderGID);
+                	sender = Connection.getConnection(senderGID);
+                }
                 
-                //Check for outdated message (older than 30 seconds)
-                if(msgDelay>MSG_TIMEOUT){
-                    //Do nothing
-                    if(DEBUG)System.out.println("processMessage: UpdateShip(late message - msgDelay: "+(msgDelay/1000)+" seconds)");
+                if(sender.isValid(msg.getSequenceNumber())) {
+                	sender.update(msg.getSequenceNumber());
+                	ArrayList<ShipData> sdlist = msg.getShipData();
+                	for(ShipData sd: sdlist) {
+                		DataController.getInstance().updateShipFromPeer(sd);
+                	}
                 }
-                //If destination peer isn't local peer, immediately relay message
-                else if(!msg.getSource().equals(manager.getLocalPeer().getPeerGID())){
-                    String dest = msg.getSource().getPeerGID();
-                    manager.sendToPeer(dest, data);
-                    if(DEBUG)System.out.println("processMessage: UpdateShip(relaying msg from: "+senderGID.substring(0, 20)+" to:"+dest.substring(0, 20)+")");
-                }
-                //Else process update
-                else {
-                    ShipData sd = msg.getShipData();
-                    String ownerGID = sd.getOwnerGIDAsString();
-                    manager.getPeerByGID(ownerGID).pushShipDataUpdate(sd);
-                }
+                
                 if(DEBUG)System.out.println("processMessage: UpdateShip(end)");
             } else {
                 if(DEBUG)System.out.println("processMessage: Received Unknown Message Type");
@@ -191,7 +172,7 @@ public class NetworkController {
         }
         catch (ASN1DecoderFail ex) {
                 Logger.getLogger(NetworkController.class.getName()).log(Level.SEVERE, null, ex);
-            }
+        }
     }
     
     //Process outputQueue
@@ -209,13 +190,7 @@ public class NetworkController {
     }
     
     public static void processOutputEvent(OutputEvent outEvent){
-        String destGID = outEvent.getDestGID();
-        if(DEBUG&&destGID!=null&&outEvent.getEventType()!=OutputEventType.SHIP_UPDATE){
-            String dest = destGID.substring(0, 20);
-            String local = manager.getLocalPeer().getPeerGIDAsString().substring(0, 20);
-            System.out.println("processOutputEvent: destGID: "+dest);
-            System.out.println("processOutputEvent: localGID: "+local);
-        }
+
         switch(outEvent.getEventType()){
             case JOIN_REQUEST:
                 //Do nothing
@@ -230,52 +205,17 @@ public class NetworkController {
                 //Do nothing
                 break;
             case REQUEST_ACK:
-                if(DEBUG)System.out.println("processOutputEvent: REQUEST_ACK(start)");
-                //Perform REQUEST_ACK operation
-                boolean answer = (boolean) outEvent.getRequestAckAnswer();
-                RequestAck ack;
-                
-                //Generate RequestAck based on answer
-                if(answer){
-                    PeerMap map = manager.generatePeerMap();
-                    ack = new RequestAck(map);
-                } else{
-                    ack = new RequestAck(null);
-                }
-                byte[] encodedRequestAck = ack.getEncoder().getBytes();
-                
-                if(destGID!=null){
-                    handler.sendMessage(destGID, encodedRequestAck);
-                } else{
-                    if(DEBUG)System.out.println("processOutputEvent: REQUEST_ACK(Error: no destGID specified)");
-                }
-                if(DEBUG)System.out.println("processOutputEvent: REQUEST_ACK(end)");
+                //Do nothing
                 break;
             case SHIP_UPDATE:
-                //if(DEBUG)System.out.println("processOutputEvent: SHIP_UPDATE(start)");
-                //Perform SHIP_UPDATE operation
-                ShipData localSD = manager.getLocalPeer().getShipData();
-                //if(DEBUG)System.out.println("processOutputEvent: SHIP_UPDATE(sending:"+localSD.getString()+"\n)");
-                byte[] encodedUpdateShip;
-                //Send to all peers if destGID==null
-                if(destGID==null){
-                    Collection<Peer> peerList = manager.getPeerList();
-                    
-                    for(Peer p: peerList){
-                        //Verify Peer p != local peer
-                        if(!p.getPeerGIDAsString().equals(manager.getLocalPeer().getPeerGIDAsString())){
-                            UpdateShip tempUS = new UpdateShip(p.getPeerGID(), localSD);
-                            encodedUpdateShip = tempUS.getEncoder().getBytes();
-                            manager.sendToPeer(p.getPeerGIDAsString(), encodedUpdateShip);
-                        }
-                        
-                    }
-                } else {
-                    UpdateShip singleUS = new UpdateShip(destGID, localSD);
-                    encodedUpdateShip = singleUS.getEncoder().getBytes();
-                    manager.sendToPeer(destGID, encodedUpdateShip);
+            	UpdateShip us = UpdateShip.buildLocal();
+            	byte[] data = us.encode();
+            	
+                Connection.validate();
+                ArrayList<String> gids = Connection.getGIDs();
+                for(String str: gids){
+                	handler.sendMessage(str, data);
                 }
-                //if(DEBUG)System.out.println("processOutputEvent: SHIP_UPDATE(end)");
                 break;
             default:
                 if(DEBUG)System.out.println("Error: Can't process OutputEvent::Unknown OutputEventType");

@@ -43,6 +43,7 @@ public class Display extends Canvas {
     private boolean showBounds = false;             //Show bounding shape of ship used in collisions
     private boolean showPhysicsVariables = false;   //Show physics variables of ship on screen
     private boolean showShipVariables = false;      //Show ship-specific variables on screen
+    private int secondShip = 0;
     
     //Getter methods
     public JFrame getFrame() {return this.frame;}
@@ -57,7 +58,7 @@ public class Display extends Canvas {
         
         frame.addWindowListener(new DisplayWindowListener(this));
         this.addKeyListener(new DisplayKeyListener(this));
-        this.addMouseListener(new DisplayMouseListener());
+        this.addMouseListener(new DisplayMouseListener(this));
         
         frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
         frame.setLayout(new BorderLayout());
@@ -275,6 +276,9 @@ public class Display extends Canvas {
         Collection<Ship> ships = DataController.getInstance().getShips();
         Point playerPoint = player.getCenter();
         for(Ship s: ships){
+        	if(s == player){
+        		continue;
+        	}
             Point sPoint = s.getCenter();
             int xDist = (int)sPoint.getX()-(int)playerPoint.getX()+(this.getWidth()/2);
             int yDist = (int)sPoint.getY()-(int)playerPoint.getY()+(this.getHeight()/2);
@@ -321,23 +325,59 @@ public class Display extends Canvas {
         g2d.setTransform(identity);
         g2d.setColor(Color.RED);
         Ship s = DataController.getInstance().getPlayerShip();
+        double dX = (s.getDest()==null)?0:s.getDest().getX();
+        double dY = (s.getDest()==null)?0:s.getDest().getY();
         String temp;
+        temp = String.format("Name: %s", s.getName());
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 15);
         temp = String.format("Position: (%.2f,%.2f)",s.getPosition().getX(), s.getPosition().getY());
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 10);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 30);
         temp = String.format("Center: (%.2f,%.2f)", s.getCenter().getX(), s.getCenter().getY());
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 25);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 45);
         temp = String.format("Velocity: (%.2f,%.2f)", s.getXVelocity(), s.getYVelocity());
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 40);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 60);
         temp = String.format("NetVelocity: %.2f Moving: %.2f", s.getNetVelocity(), s.getMoving());
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 55);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 75);
         temp = "Accelerate: "+s.isAccel()+" Reverse: "+s.istReverse();
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 70);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 90);
         temp = "TurnLeft: "+s.isTurnLeft()+" TurnRight: "+s.isTurnRight();
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 85);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 105);
         temp = "Alive: "+s.isAlive()+" Initialized: "+s.isInitialized();
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 100);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 120);
         temp = String.format("Facing: %.2f TurnSpeed: %.0f", s.getFacing(), s.getTurnSpeed());
-        g2d.drawChars(temp.toCharArray(), 0, temp.length(), 600, 115);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 135);
+        temp = String.format("Offset: (%.2f,%.2f)", dX, dY);
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 150);
+        temp = String.format("Dest: (%.2f,%.2f)", dX+s.getCenter().getX(), dY+s.getCenter().getY());
+        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, 165);
+        
+        s = DataController.getInstance().getShipAt(secondShip);
+        if(s != null) {
+        	dX = (s.getDest()==null)?0:s.getDest().getX();
+            dY = (s.getDest()==null)?0:s.getDest().getY();
+            temp = String.format("Name: %s", s.getName());
+            g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-170);
+	        temp = String.format("Position: (%.2f,%.2f)",s.getPosition().getX(), s.getPosition().getY());
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-155);
+	        temp = String.format("Center: (%.2f,%.2f)", s.getCenter().getX(), s.getCenter().getY());
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-140);
+	        temp = String.format("Velocity: (%.2f,%.2f)", s.getXVelocity(), s.getYVelocity());
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-125);
+	        temp = String.format("NetVelocity: %.2f Moving: %.2f", s.getNetVelocity(), s.getMoving());
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-110);
+	        temp = "Accelerate: "+s.isAccel()+" Reverse: "+s.istReverse();
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-95);
+	        temp = "TurnLeft: "+s.isTurnLeft()+" TurnRight: "+s.isTurnRight();
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-80);
+	        temp = "Alive: "+s.isAlive()+" Initialized: "+s.isInitialized();
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-65);
+	        temp = String.format("Facing: %.2f TurnSpeed: %.0f", s.getFacing(), s.getTurnSpeed());
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-50);
+	        temp = String.format("Offset: (%.2f,%.2f)", dX, dY);
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-35);
+	        temp = String.format("Dest: (%.2f,%.2f)", dX+s.getCenter().getX(), dY+s.getCenter().getY());
+	        g2d.drawChars(temp.toCharArray(), 0, temp.length(), bounds.width-200, bounds.height-20);
+        }
         
     }
     
@@ -360,5 +400,9 @@ public class Display extends Canvas {
     public void toggleShipVariables() {
         this.showShipVariables = !this.showShipVariables;
         if(DEBUG)System.out.println("Ship Variables Toggled to: "+showShipVariables);
+    }
+    
+    public void toggleSecondShip(int val) {
+    	this.secondShip = val;
     }
 }
